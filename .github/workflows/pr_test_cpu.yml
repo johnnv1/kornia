@@ -42,5 +42,6 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           file: coverage.xml
-          flags: cpu,${{ matrix.os }}_python-${{ matrix.python-version }}_torch-${{ matrix.pytorch-version }}_${{ matrix.pytorch-dtype }}
+          token: ${{ secrets.CODECOV_TOKEN }} # not to depend on build via GH API
+          flags: cpu,${{ matrix.os }}_py-${{ matrix.python-version }}_pt-${{ matrix.pytorch-version }}_${{ matrix.pytorch-dtype }}
           name: cpu-coverage
