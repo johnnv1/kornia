@@ -21,11 +21,17 @@ coverage:
     project:
       default:
         against: auto
-        target: 99% # specify the target coverage for each commit status
-        threshold: 30% # allow this little decrease on project
+        target: 90% # specify the target coverage for each commit status
+        threshold: 5% # allow this little decrease on project
         # https://github.com/codecov/support/wiki/Filtering-Branches
         # branches: master
         if_ci_failed: error
+        flags:
+          - cpu
+      typing:
+        target: 90%
+        flags:
+          - typing
     # https://github.com/codecov/support/wiki/Patch-Status
     patch:
       default:
