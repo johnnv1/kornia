@@ -1,9 +1,12 @@
-from typing import List, Optional
+from __future__ import annotations
 
 import torch
 import torch.nn.functional as F
 
-__all__ = ["dilation", "erosion", "opening", "closing", "gradient", "top_hat", "bottom_hat"]
+from kornia.core import Tensor
+from kornia.core.check import KORNIA_CHECK, KORNIA_CHECK_IS_TENSOR
+
+__all__ = ["dilation", "erosion", "opening", "closing", "gradient", "top_hat", "bottom_hat", "skeletonize"]
 
 
 def _neight2channels_like_kernel(kernel: torch.Tensor) -> torch.Tensor:
@@ -15,12 +18,12 @@ def _neight2channels_like_kernel(kernel: torch.Tensor) -> torch.Tensor:
 def dilation(
     tensor: torch.Tensor,
     kernel: torch.Tensor,
-    structuring_element: Optional[torch.Tensor] = None,
-    origin: Optional[List[int]] = None,
-    border_type: str = "geodesic",
+    structuring_element: torch.Tensor | None = None,
+    origin: list[int] | None = None,
+    border_type: str = 'geodesic',
     border_value: float = 0.0,
     max_val: float = 1e4,
-    engine: str = "unfold",
+    engine: str = 'unfold',
 ) -> torch.Tensor:
     r"""Return the dilated image applying the same kernel in each channel.
 
@@ -74,10 +77,10 @@ def dilation(
         origin = [se_h // 2, se_w // 2]
 
     # pad
-    pad_e: List[int] = [origin[1], se_w - origin[1] - 1, origin[0], se_h - origin[0] - 1]
-    if border_type == "geodesic":
+    pad_e: list[int] = [origin[1], se_w - origin[1] - 1, origin[0], se_h - origin[0] - 1]
+    if border_type == 'geodesic':
         border_value = -max_val
-        border_type = "constant"
+        border_type = 'constant'
     output: torch.Tensor = F.pad(tensor, pad_e, mode=border_type, value=border_value)
 
     # computation
@@ -88,11 +91,11 @@ def dilation(
         neighborhood = structuring_element.clone()
         neighborhood[kernel == 0] = -max_val
 
-    if engine == "unfold":
+    if engine == 'unfold':
         output = output.unfold(2, se_h, 1).unfold(3, se_w, 1)
         output, _ = torch.max(output + neighborhood.flip((0, 1)), 4)
         output, _ = torch.max(output, 4)
-    elif engine == "convolution":
+    elif engine == 'convolution':
         B, C, H, W = tensor.size()
         h_pad, w_pad = output.shape[-2:]
         reshape_kernel = _neight2channels_like_kernel(kernel)
@@ -108,12 +111,12 @@ def dilation(
 def erosion(
     tensor: torch.Tensor,
     kernel: torch.Tensor,
-    structuring_element: Optional[torch.Tensor] = None,
-    origin: Optional[List[int]] = None,
-    border_type: str = "geodesic",
+    structuring_element: torch.Tensor | None = None,
+    origin: list[int] | None = None,
+    border_type: str = 'geodesic',
     border_value: float = 0.0,
     max_val: float = 1e4,
-    engine: str = "unfold",
+    engine: str = 'unfold',
 ) -> torch.Tensor:
     r"""Return the eroded image applying the same kernel in each channel.
 
@@ -167,10 +170,10 @@ def erosion(
         origin = [se_h // 2, se_w // 2]
 
     # pad
-    pad_e: List[int] = [origin[1], se_w - origin[1] - 1, origin[0], se_h - origin[0] - 1]
-    if border_type == "geodesic":
+    pad_e: list[int] = [origin[1], se_w - origin[1] - 1, origin[0], se_h - origin[0] - 1]
+    if border_type == 'geodesic':
         border_value = max_val
-        border_type = "constant"
+        border_type = 'constant'
     output: torch.Tensor = F.pad(tensor, pad_e, mode=border_type, value=border_value)
 
     # computation
@@ -181,11 +184,11 @@ def erosion(
         neighborhood = structuring_element.clone()
         neighborhood[kernel == 0] = -max_val
 
-    if engine == "unfold":
+    if engine == 'unfold':
         output = output.unfold(2, se_h, 1).unfold(3, se_w, 1)
         output, _ = torch.min(output - neighborhood, 4)
         output, _ = torch.min(output, 4)
-    elif engine == "convolution":
+    elif engine == 'convolution':
         B, C, H, W = tensor.size()
         Hpad, Wpad = output.shape[-2:]
         reshape_kernel = _neight2channels_like_kernel(kernel)
@@ -202,12 +205,12 @@ def erosion(
 def opening(
     tensor: torch.Tensor,
     kernel: torch.Tensor,
-    structuring_element: Optional[torch.Tensor] = None,
-    origin: Optional[List[int]] = None,
-    border_type: str = "geodesic",
+    structuring_element: torch.Tensor | None = None,
+    origin: list[int] | None = None,
+    border_type: str = 'geodesic',
     border_value: float = 0.0,
     max_val: float = 1e4,
-    engine: str = "unfold",
+    engine: str = 'unfold',
 ) -> torch.Tensor:
     r"""Return the opened image, (that means, dilation after an erosion) applying the same kernel in each channel.
 
@@ -279,12 +282,12 @@ def opening(
 def closing(
     tensor: torch.Tensor,
     kernel: torch.Tensor,
-    structuring_element: Optional[torch.Tensor] = None,
-    origin: Optional[List[int]] = None,
-    border_type: str = "geodesic",
+    structuring_element: torch.Tensor | None = None,
+    origin: list[int] | None = None,
+    border_type: str = 'geodesic',
     border_value: float = 0.0,
     max_val: float = 1e4,
-    engine: str = "unfold",
+    engine: str = 'unfold',
 ) -> torch.Tensor:
     r"""Return the closed image, (that means, erosion after a dilation) applying the same kernel in each channel.
 
@@ -357,12 +360,12 @@ def closing(
 def gradient(
     tensor: torch.Tensor,
     kernel: torch.Tensor,
-    structuring_element: Optional[torch.Tensor] = None,
-    origin: Optional[List[int]] = None,
-    border_type: str = "geodesic",
+    structuring_element: torch.Tensor | None = None,
+    origin: list[int] | None = None,
+    border_type: str = 'geodesic',
     border_value: float = 0.0,
     max_val: float = 1e4,
-    engine: str = "unfold",
+    engine: str = 'unfold',
 ) -> torch.Tensor:
     r"""Return the morphological gradient of an image.
 
@@ -423,12 +426,12 @@ def gradient(
 def top_hat(
     tensor: torch.Tensor,
     kernel: torch.Tensor,
-    structuring_element: Optional[torch.Tensor] = None,
-    origin: Optional[List[int]] = None,
-    border_type: str = "geodesic",
+    structuring_element: torch.Tensor | None = None,
+    origin: list[int] | None = None,
+    border_type: str = 'geodesic',
     border_value: float = 0.0,
     max_val: float = 1e4,
-    engine: str = "unfold",
+    engine: str = 'unfold',
 ) -> torch.Tensor:
     r"""Return the top hat transformation of an image.
 
@@ -494,12 +497,12 @@ def top_hat(
 def bottom_hat(
     tensor: torch.Tensor,
     kernel: torch.Tensor,
-    structuring_element: Optional[torch.Tensor] = None,
-    origin: Optional[List[int]] = None,
-    border_type: str = "geodesic",
+    structuring_element: torch.Tensor | None = None,
+    origin: list[int] | None = None,
+    border_type: str = 'geodesic',
     border_value: float = 0.0,
     max_val: float = 1e4,
-    engine: str = "unfold",
+    engine: str = 'unfold',
 ) -> torch.Tensor:
     r"""Return the bottom hat transformation of an image.
 
@@ -563,3 +566,52 @@ def bottom_hat(
         )
         - tensor
     )
+
+
+def skeletonize(data: Tensor, kernel: Tensor | None = None) -> Tensor:
+    r"""Return the skeleton of a binary image.
+
+    In morphological terms, it involves reducing foreground regions in a
+    binary image while preserving the extent and connectivity of the original
+    region and throwing away most of the foreground pixels.
+
+    The kernel must have 2 dimensions.
+
+    Args:
+        data: Image with shape :math:`(B, 1, H, W)`. [C = 1]
+        kernel: Positions of non-infinite elements of a flat structuring element.
+                Non-zero values give the set of neighbors of the center over which
+                the operation is applied. Its shape is :math:`(k_x, k_y)`.
+                For full structural elements use torch.ones_like(structural_element).
+    Returns:
+        Skeleton of the image with shape :math:`(B, 1, H, W)`. [C = 1]
+
+    Example:
+        >>> data = torch.rand(1, 1, 20, 20)
+        >>> kernel = torch.ones(3, 3)
+        >>> skeleton_img = skeletonize(data, kernel)
+    """
+
+    KORNIA_CHECK_IS_TENSOR(data)
+    KORNIA_CHECK(len(data.shape) == 4, "Input size must have 4 dimensions.")
+
+    data = data.int()
+    output = torch.zeros(data.shape, device=data.device, dtype=torch.int64)
+
+    if kernel is None:
+        kernel = torch.tensor([[0, 1, 0], [1, 1, 1], [0, 1, 0]], device=data.device, dtype=torch.int64)
+
+    KORNIA_CHECK_IS_TENSOR(kernel)
+    KORNIA_CHECK(len(kernel.shape) == 2, "Kernel size must have 2 dimensions.")
+
+    while True:
+        opened_img = opening(data, kernel)
+        subtracted_img = torch.sub(data, opened_img)
+        subtracted_img[subtracted_img < 0] = 0
+        eroded_img = erosion(data, kernel)
+        output = torch.bitwise_or(output, subtracted_img)
+        data = eroded_img.clone()
+        if torch.count_nonzero(data) == 0:
+            break
+
+    return output.view_as(data)
